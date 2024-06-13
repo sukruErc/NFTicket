@@ -1,0 +1,287 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// npx prisma migrate dev --name addCollectionFeature
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String               @id @default(uuid())
+  name               String
+  email              String               @unique
+  type               Role                 @default(CUSTOMER)
+  subscribeType      SubscribeType        @default(NONE)
+  status             Boolean
+  bcAddress          String               @unique
+  password           String
+  image              String?
+  phone              String?
+  birthday           DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  Event              Event[]
+  PendingEvent       PendingEvent[]
+  // Tickets            Tickets[]
+  MemoryTicket       MemoryTicket[]
+  ViewedEvent        ViewedEvent[] // Relation to ViewedEvent
+  LoginAttempt       LoginAttempt[] // Relation to LoginAttempt
+  Collection         Collection[] // Relation to Collection
+  VerificationCode   VerificationCode[]
+  PasswordResetToken PasswordResetToken[]
+  blockchainInfo     BlockchainInfo?
+  Tickets            Tickets[]
+
+  @@unique([email, bcAddress])
+}
+
+model BlockchainInfo {
+  id              String  @id @default(uuid())
+  privateKey      String?
+  mnemonic        String?
+  mnemonicIsShown Boolean @default(false)
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id])
+}
+
+model Event {
+  id                String            @id @default(uuid())
+  creatorId         User              @relation(fields: [userId], references: [id])
+  date              DateTime
+  desc              String?
+  eventName         String
+  eventCategory     Category          @relation(fields: [categoryId], references: [id])
+  eventCategoryType CategoryType      @relation(fields: [categoryTypeId], references: [id])
+  image             String
+  location          Location          @relation(fields: [locationId], references: [id])
+  time              String
+  userId            String
+  contractAddress   String
+  categoryId        String
+  categoryTypeId    String
+  locationId        String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  ViewedEvent       ViewedEvent[] // Relation to ViewedEvent
+  CollectionEvent   CollectionEvent[] // Relation to CollectionEvent
+  AdEvent           AdEvent[]
+  TicketCategory    TicketCategory[]
+  Tickets           Tickets[]
+
+  @@index([createdAt])
+  @@index([date])
+}
+
+model PendingEvent {
+  id                String       @id @default(uuid())
+  creatorId         User         @relation(fields: [userId], references: [id])
+  date              DateTime
+  desc              String?
+  eventName         String
+  eventCategory     Category     @relation(fields: [categoryId], references: [id])
+  eventCategoryType CategoryType @relation(fields: [categoryTypeId], references: [id])
+  isActive          Boolean      @default(false)
+  image             String
+  location          Location     @relation(fields: [locationId], references: [id])
+  time              String
+  userId            String
+  categoryId        String
+  categoryTypeId    String
+  ticketPriceEntity Json
+  locationId        String
+
+  @@unique([eventName, date])
+}
+
+model Tickets {
+  id               String         @id @default(uuid())
+  owner            User           @relation(fields: [userId], references: [id])
+  ticketTypeName   String
+  price            Float
+  eventId          String
+  tokenId          Int
+  ticketCategoryId String
+  isUsed           Boolean        @default(false)
+  // eventCategoryType CategoryType   @relation(fields: [categoryTypeId], references: [id])
+  // eventCategory     Category       @relation(fields: [categoryId], references: [id])
+  // eventName         String
+  userId           String
+  // categoryId        String
+  // categoryTypeId    String
+  sold             Boolean        @default(false)
+  event            Event          @relation(fields: [eventId], references: [id])
+  ticketCategory   TicketCategory @relation(fields: [ticketCategoryId], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([eventId])
+  @@index([ticketCategoryId])
+}
+
+model TicketCategory {
+  id        String    @id @default(uuid())
+  eventId   String
+  name      String
+  price     Float
+  quantity  Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  event     Event     @relation(fields: [eventId], references: [id])
+  Tickets   Tickets[]
+
+  @@index([eventId])
+  @@index([createdAt])
+}
+
+model MemoryTicket {
+  id              Int           @id @default(autoincrement())
+  owner           User          @relation(fields: [userId], references: [id])
+  tokenId         Int
+  userId          String
+  displayName     String        @default("")
+  contract        SmartContract @relation(fields: [smartContractId], references: [id])
+  smartContractId String
+}
+
+model SmartContract {
+  id               String         @id @default(uuid())
+  activityName     String
+  contractAdress   String
+  contractCapacity Int
+  MemoryTicket     MemoryTicket[]
+}
+
+model Category {
+  id           String         @id @default(uuid())
+  name         String         @unique
+  CategoryType CategoryType[]
+  Event        Event[]
+  PendingEvent PendingEvent[]
+  // Tickets      Tickets[]
+}
+
+model CategoryType {
+  id           String         @id @default(uuid())
+  name         String         @unique
+  category     Category       @relation(fields: [categoryId], references: [id])
+  categoryId   String
+  PendingEvent PendingEvent[]
+  Event        Event[]
+  // Tickets      Tickets[]
+}
+
+model Location {
+  id           String         @id @default(uuid())
+  name         String         @unique
+  Event        Event[]
+  PendingEvent PendingEvent[]
+}
+
+model ViewedEvent {
+  id       String   @id @default(uuid())
+  user     User     @relation(fields: [userId], references: [id])
+  event    Event    @relation(fields: [eventId], references: [id])
+  viewedAt DateTime @default(now())
+  userId   String
+  eventId  String
+
+  @@unique([userId, eventId])
+}
+
+model Log {
+  id        String   @id @default(uuid())
+  message   String
+  level     LogLevel
+  timestamp DateTime @default(now())
+}
+
+model LoginAttempt {
+  id        String      @id @default(uuid())
+  user      User        @relation(fields: [userId], references: [id])
+  userId    String
+  timestamp DateTime    @default(now())
+  ipAddress String
+  status    LoginStatus
+}
+
+model Collection {
+  id             String            @id @default(uuid())
+  collectionName String
+  user           User              @relation(fields: [userId], references: [id])
+  userId         String
+  events         CollectionEvent[]
+  completed      Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([createdAt])
+}
+
+model CollectionEvent {
+  id           String     @id @default(uuid())
+  collection   Collection @relation(fields: [collectionId], references: [id])
+  collectionId String
+  event        Event      @relation(fields: [eventId], references: [id])
+  eventId      String
+  attended     Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+
+  @@index([createdAt])
+}
+
+model AdEvent {
+  id        String   @id @default(uuid())
+  startDate DateTime
+  endDate   DateTime
+  event     Event    @relation(fields: [eventId], references: [id])
+  eventId   String
+}
+
+model VerificationCode {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String
+  expiresAt DateTime
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+enum Role {
+  CUSTOMER
+  ORGANIZER
+  ADMIN
+}
+
+enum SubscribeType {
+  NONE
+  PERSONAL
+  FAMILY
+}
+
+enum LogLevel {
+  INFO
+  WARNING
+  ERROR
+}
+
+enum LoginStatus {
+  SUCCESS
+  FAILURE
+}
